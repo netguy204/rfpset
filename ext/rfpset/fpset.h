@@ -10,7 +10,7 @@ typedef struct {
 } blob;
 
 blob* blob_make(size_t reserved_size);
-blob* blob_fill(blob* dst, char * src, size_t count);
+blob* blob_fill(blob* dst, const char * src, size_t count);
 
 blob* blob_read(FILE* src, blob* datum);
 int blob_write(FILE* dst, blob* datum);

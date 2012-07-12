@@ -1,10 +1,14 @@
 #include "fpset.h"
 #include <ruby.h>
 
-static VALUE rfpset_bonjour(VALUE self) {
-  return rb_str_new2("hello world!");
-}
-
+/**
+ * IMROVEMENT IDEAS:
+ * 
+ * A RSTRING is pretty similar to a blob. We could write routines to
+ * sort the RARRAY in place and emit the RSTRING directly. That would
+ * cut memory usage in half.
+ *
+ */
 static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
   FILE* out = fopen(RSTRING_PTR(filename), "w");
   if(out == NULL) return rb_fix_new(-1);
@@ -100,7 +104,6 @@ VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
 
 void Init_rfpset() {
   VALUE klass = rb_define_class("FPSetInternal", rb_cObject);
-  rb_define_singleton_method(klass, "bonjour", rfpset_bonjour, 0);
   rb_define_singleton_method(klass, "spit_array", rfpset_spit_array, 2);
   rb_define_singleton_method(klass, "slurp_array", rfpset_slurp_array, 1);
   rb_define_singleton_method(klass, "intersect_files", rfpset_intersect_files, 1);

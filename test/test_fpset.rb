@@ -3,10 +3,6 @@ require 'rfpset'
 
 class FPSetTest < Test::Unit::TestCase
 
-  def test_bonjour
-    assert_equal "hello world!", FPSetInternal.bonjour
-  end
-
   def test_primitive
     data = ["one", "two", "three"]
     testfile = "test.dat"
@@ -35,3 +31,4 @@ class FPSetTest < Test::Unit::TestCase
 
   end
 end
+

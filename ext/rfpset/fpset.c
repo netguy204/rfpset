@@ -79,7 +79,7 @@ int blob_sort_array(blob** blobs, size_t count) {
   qsort(blobs, count, sizeof(blob*), blob_compare);
 }
 
-blob* blob_fill(blob* dst, char * src, size_t count) {
+blob* blob_fill(blob* dst, const char * src, size_t count) {
   dst = blob_ensure_reserved_size(dst, count);
   dst->size = count;
   memcpy(dst->data, src, count);
@@ -169,10 +169,13 @@ blob** blob_intersect_files(FILE** files, int file_count, int* result_count) {
     }
   }
 
+  free(master_blob);
+  free(next_blob);
+
   return result;
 }
 
-blob* blob_make_test(char * c_str) {
+blob* blob_make_test(const char * c_str) {
   blob* new_blob = blob_make(strlen(c_str) + 1);
   return blob_fill(new_blob, c_str, strlen(c_str) + 1);
 }
