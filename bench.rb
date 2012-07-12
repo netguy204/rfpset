@@ -10,7 +10,7 @@ def generate_ngrams(count, width)
 end
 
 # make n big sets
-num_sets = 6
+num_sets = 7
 size = 100000
 
 puts "building #{num_sets} of #{size}\n"
@@ -38,5 +38,5 @@ end
 stop = Time.now
 puts "Time elapsed #{(stop - start) * 1000} milliseconds\n"
 
-puts join.join(", ")
+puts result.sort.join(", ")
 

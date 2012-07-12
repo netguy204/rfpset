@@ -30,7 +30,7 @@ blob* blob_make(size_t reserved_size) {
 }
 
 blob* blob_ensure_reserved_size(blob* datum, size_t reserved_size) {
-  if(datum->reserved_size < reserved_size) {
+  if(reserved_size > datum->reserved_size) {
     datum = realloc(datum, reserved_size);
     datum->reserved_size = reserved_size;
   }
