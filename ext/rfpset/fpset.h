@@ -1,6 +1,14 @@
 #ifndef FPSET_H
 #define FPSET_H
 
+#include <stdio.h>
+
+typedef struct {
+  size_t size;
+  size_t reserved_size;
+  char data[0];
+} blob;
+
 blob* blob_make(size_t reserved_size);
 blob* blob_read(FILE* src, blob* datum);
 int blob_write(FILE* dst, blob* datum);

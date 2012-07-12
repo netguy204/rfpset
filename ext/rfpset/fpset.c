@@ -13,13 +13,6 @@
 
 typedef char* bytes;
 
-typedef struct {
-  size_t size;
-  size_t reserved_size;
-  char data[0];
-} blob;
-
-
 /**
  * Read COUNT bytes from SRC into DATA. Return 1 if all bytes were
  * read successfully or 0 if it wasn't possible to read the requested

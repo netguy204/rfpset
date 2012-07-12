@@ -1,3 +1,3 @@
 require 'mkmf'
 
-create_makefile('fpset/fpset')
+create_makefile('rfpset/rfpset')

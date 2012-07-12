@@ -6,6 +6,6 @@ static VALUE rfpset_bonjour(VALUE self) {
 }
 
 void Init_rfpset() {
-  VALUE klass = rb_define_class("FPSet", rb_cObject);
+  VALUE klass = rb_define_class("FPSetInternal", rb_cObject);
   rb_define_singleton_method(klass, "bonjour", rfpset_bonjour, 0);
 }
