@@ -79,11 +79,102 @@ int blob_sort_array(blob** blobs, size_t count) {
   qsort(blobs, count, sizeof(blob*), blob_compare);
 }
 
+blob* blob_fill(blob* dst, char * src, size_t count) {
+  dst = blob_ensure_reserved_size(dst, count);
+  dst->size = count;
+  memcpy(dst->data, src, count);
+  return dst;
+}
+
+blob* blob_copy(blob* src) {
+  blob* new_blob = blob_make(src->size);
+  return blob_fill(new_blob, src->data, src->size);
+}
+
+blob** blob_intersect_files(FILE** files, int file_count, int* result_count) {
+  if(file_count == 0) {
+    *result_count = 0;
+    return NULL;
+  }
+
+  int master_idx = 0;
+  int ii = 0;
+  blob* master_blob = blob_make(512);
+  blob* next_blob = blob_make(512);
+
+  int result_capacity = 1024;
+  *result_count = 0;
+  blob** result = malloc(sizeof(blob*) * result_capacity);
+
+  // bootstrap
+  master_blob = blob_read(files[0], master_blob);
+
+  // until a file runs out of data
+  while(1) {
+    int all_match = 1;
+    int end_of_file = 0;
+
+    for(ii = 0; ii < file_count; ++ii) {
+      if(ii == master_idx) continue;
+
+      // read blobs from this file until they aren't less than the
+      // master blob
+      int compare_result = 0;
+      while(1) {
+        next_blob = blob_read(files[ii], next_blob);
+        if(next_blob == NULL) {
+          end_of_file = 1;
+          break;
+        } else {
+          compare_result = blob_compare(&next_blob, &master_blob);
+          if(compare_result >= 0) break;
+        }
+      }
+
+      // if any file ever reaches the end while we're looking it means
+      // that we've found the entire intersection
+      if(end_of_file) {
+        all_match = 0;
+        break;
+      }
+
+      // if we ever get a non-zero compare result then that means the
+      // current candidate is a failure and we have a new candidate to
+      // try
+      if(compare_result != 0) {
+        all_match = 0;
+        break;
+      }
+    }
+
+    // finish bailing out on end of file
+    if(end_of_file) break;
+
+    // store the match if we had one
+    if(all_match) {
+      // resize our result array if we need to
+      if(*result_count == result_capacity) {
+        result = realloc(result, result_capacity * 2);
+        result_capacity *= 2;
+      }
+
+      result[(*result_count)++] = blob_copy(master_blob);
+    } else {
+      // if we didn't have a match then whichever blob failed first
+      // becomes the new master and we try again
+      blob* temp = master_blob;
+      master_blob = next_blob;
+      next_blob = temp;
+      master_idx = ii;
+    }
+  }
+
+  return result;
+}
+
 blob* blob_make_test(char * c_str) {
   blob* new_blob = blob_make(strlen(c_str) + 1);
-  new_blob->size = strlen(c_str) + 1;
-  memcpy(new_blob->data, c_str, strlen(c_str) + 1);
-  return new_blob;
+  return blob_fill(new_blob, c_str, strlen(c_str) + 1);
 }
 
 int main(int argc, char ** argv) {
@@ -110,6 +201,20 @@ int main(int argc, char ** argv) {
   read_blob = blob_read(test, read_blob);
   blob_print(stdout, read_blob);
   fclose(test);
+
+  test = fopen("test2.dat", "w");
+  blob_write(test, test2);
+  fclose(test);
+
+  FILE* files[2];
+  files[0] = fopen("test.dat", "r");
+  files[1] = fopen("test2.dat", "r");
+
+  int found;
+  blob** intersect = blob_intersect_files(files, 2, &found);
+  printf("found %d intersects\n", found);
+  blob_print(stdout, intersect[0]);
+  //blob_print(stdout, intersect[1]);
 
   return 0;
 }
