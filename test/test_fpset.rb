@@ -26,7 +26,7 @@ class FPSetTest < Test::Unit::TestCase
     test1 = "test.dat"
     test2 = "test2.dat"
 
-    FPSet.to_file(1..5, test1)
+    FPSet.to_file(Array(1..5).concat(Array(1..5)), test1)
     FPSet.to_file(3..6, test2)
     assert_equal 3, FPSet.intersect_files([test1, test2]).size
     assert_equal (1..5).to_set, FPSet.from_file(test1)

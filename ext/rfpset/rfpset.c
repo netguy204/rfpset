@@ -29,13 +29,25 @@ static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
   blob_sort_array(blobs, size);
 
   // spit them at the disk, freeing as we go
+  blob* last_blob = NULL;
   for(ii = 0; ii < size; ++ii) {
-    blob_write(out, blobs[ii]);
-    free(blobs[ii]);
+    if(!last_blob
+       || blobs[ii]->size != last_blob->size
+       || memcmp(blobs[ii]->data, last_blob->data, last_blob->size) != 0) {
+      // this blob is unique. Write it
+      blob_write(out, blobs[ii]);
+
+      if(last_blob) free(last_blob);
+      last_blob = blobs[ii];
+    } else {
+      free(blobs[ii]);
+    }
   }
 
-  fclose(out);
+  if(last_blob) free(last_blob);
   free(blobs);
+
+  fclose(out);
 
   // return the number of blobs written
   return rb_fix_new(size);
