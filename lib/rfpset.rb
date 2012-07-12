@@ -1,5 +1,6 @@
 require "rfpset/version"
 require "rfpset/rfpset"
+require 'set'
 
 module FPSet
   # Your code goes here...
@@ -10,6 +11,13 @@ module FPSet
     return result
   end
   module_function :to_file
+
+  def from_file(filename)
+    result = FPSetInternal.slurp_array(filename)
+    raise "does the file #{filename} exist?" if result == -1
+    return Set.new( result.map { |s| Marshal.load(s) } )
+  end
+  module_function :from_file
 
   def intersect_files(filenames)
     array = Array(filenames.collect { |f| f.to_s })
