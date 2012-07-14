@@ -1,5 +1,196 @@
-#include "fpset.h"
 #include <ruby.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+  size_t size;
+  size_t reserved_size;
+  char data[0];
+} blob;
+
+typedef char* bytes;
+
+/**
+ * Read COUNT bytes from SRC into DATA. Return 1 if all bytes were
+ * read successfully or 0 if it wasn't possible to read the requested
+ * number of bytes.
+ */
+int read_confidently(FILE* src, size_t count, bytes data) {
+  return fread(data, count, 1, src);
+}
+
+blob* blob_make(size_t reserved_size) {
+  blob* new_blob = malloc(sizeof(blob) + reserved_size);
+  new_blob->size = 0;
+  new_blob->reserved_size = reserved_size;
+  return new_blob;
+}
+
+blob* blob_ensure_reserved_size(blob* datum, size_t reserved_size) {
+  if(reserved_size > datum->reserved_size) {
+    datum = realloc(datum, reserved_size);
+    datum->reserved_size = reserved_size;
+  }
+  return datum;
+}
+
+/**
+ * Read a blob from SRC into DATUM. May realloc DATUM- if not large
+ * enough to contain the blob so the returned value should always be
+ * used in place of DATUM. Returns null if read was impossible.
+ */
+blob* blob_read(FILE* src, blob* datum) {
+  if(!read_confidently(src, sizeof(size_t), (char*)datum)) return NULL;
+  datum = blob_ensure_reserved_size(datum, datum->size);
+  if(!read_confidently(src, datum->size, datum->data)) return NULL;
+  return datum;
+}
+
+/**
+ * Writes DATUM to DST. Returns bytes written if success or 0 if
+ * failure. (A blob always has size > 0)
+ */
+int rstring_write(FILE* dst, VALUE string) {
+  size_t size = RSTRING_LEN(string);
+  fwrite(&size, sizeof(size_t), 1, dst);
+  return fwrite(RSTRING_PTR(string), size, 1, dst);
+}
+
+void blob_print(FILE* out, blob* datum) {
+  fprintf(out, "<blob size: %ld reserved_size: %ld data: %s>\n",
+          datum->size, datum->reserved_size, datum->data);
+}
+
+int rstring_compare(const void* va, const void* vb) {
+  VALUE a = *(VALUE*)va;
+  VALUE b = *(VALUE*)vb;
+
+  size_t size_a = RSTRING_LEN(a);
+  size_t size_b = RSTRING_LEN(b);
+
+  if(size_a < size_b) return -1;
+  if(size_a > size_b) return 1;
+  return memcmp(RSTRING_PTR(a), RSTRING_PTR(b), size_a);
+}
+
+int blob_compare(const void * va, const void * vb) {
+  blob* a = *(blob**)va;
+  blob* b = *(blob**)vb;
+
+  if(a->size < b->size) return -1;
+  if(a->size > b->size) return 1;
+  return memcmp(a->data, b->data, a->size);
+}
+
+/**
+ * Sort an array of blobs in place
+ */
+int rstring_sort_array(VALUE* strings, size_t count) {
+  qsort(strings, count, sizeof(VALUE), rstring_compare);
+}
+
+blob* blob_fill(blob* dst, const char * src, size_t count) {
+  dst = blob_ensure_reserved_size(dst, count);
+  dst->size = count;
+  memcpy(dst->data, src, count);
+  return dst;
+}
+
+blob* blob_copy(blob* src) {
+  blob* new_blob = blob_make(src->size);
+  return blob_fill(new_blob, src->data, src->size);
+}
+
+blob** blob_intersect_files(FILE** files, int file_count, int* result_count) {
+  if(file_count == 0) {
+    *result_count = 0;
+    return NULL;
+  }
+
+  int master_idx = 0;
+  int ii = 0;
+  blob* master_blob = blob_make(512);
+  blob* next_blob = blob_make(512);
+
+  int result_capacity = 1024;
+  *result_count = 0;
+  blob** result = malloc(sizeof(blob*) * result_capacity);
+
+  // bootstrap
+  master_blob = blob_read(files[0], master_blob);
+
+  // until a file runs out of data
+  while(1) {
+    int all_match = 1;
+    int end_of_file = 0;
+
+    for(ii = 0; ii < file_count; ++ii) {
+      if(ii == master_idx) continue;
+
+      // read blobs from this file until they aren't less than the
+      // master blob
+      int compare_result = 0;
+      while(1) {
+        next_blob = blob_read(files[ii], next_blob);
+        if(next_blob == NULL) {
+          end_of_file = 1;
+          break;
+        } else {
+          compare_result = blob_compare(&next_blob, &master_blob);
+          if(compare_result >= 0) break;
+        }
+      }
+
+      // if any file ever reaches the end while we're looking it means
+      // that we've found the entire intersection
+      if(end_of_file) {
+        all_match = 0;
+        break;
+      }
+
+      // if we ever get a non-zero compare result then that means the
+      // current candidate is a failure and we have a new candidate to
+      // try
+      if(compare_result != 0) {
+        all_match = 0;
+        break;
+      }
+    }
+
+    // finish bailing out on end of file
+    if(end_of_file) break;
+
+    // store the match if we had one
+    if(all_match) {
+      // resize our result array if we need to
+      if(*result_count == result_capacity) {
+        result = realloc(result, result_capacity * 2);
+        result_capacity *= 2;
+      }
+
+      result[(*result_count)++] = blob_copy(master_blob);
+    } else {
+      // if we didn't have a match then whichever blob failed first
+      // becomes the new master and we try again
+      blob* temp = master_blob;
+      master_blob = next_blob;
+      next_blob = temp;
+      master_idx = ii;
+    }
+  }
+
+  free(master_blob);
+  free(next_blob);
+
+  return result;
+}
+
+blob* blob_make_test(const char * c_str) {
+  blob* new_blob = blob_make(strlen(c_str) + 1);
+  return blob_fill(new_blob, c_str, strlen(c_str) + 1);
+}
 
 /**
  * IMROVEMENT IDEAS:
@@ -15,37 +206,23 @@ static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
 
   long ii; 
   long size = RARRAY_LEN(array);
-  blob** blobs = malloc(sizeof(blob*) * size);
 
-  // slurp out the values
+  // sort the array in place
   VALUE* values = RARRAY_PTR(array);
-  for(ii = 0; ii < size; ++ii) {
-    long len = RSTRING_LEN(values[ii]);
-    blob* new_blob = blob_make(len);
-    blobs[ii] = blob_fill(new_blob, RSTRING_PTR(values[ii]), len);
-  }
-
-  // sort them in our special way
-  blob_sort_array(blobs, size);
+  rstring_sort_array(values, size);
 
   // spit them at the disk, freeing as we go
-  blob* last_blob = NULL;
+  VALUE last_value = 0;
   for(ii = 0; ii < size; ++ii) {
-    if(!last_blob
-       || blobs[ii]->size != last_blob->size
-       || memcmp(blobs[ii]->data, last_blob->data, last_blob->size) != 0) {
+    if(!last_value
+       || RSTRING_LEN(values[ii]) != RSTRING_LEN(last_value)
+       || memcmp(RSTRING_PTR(values[ii]), RSTRING_PTR(last_value),
+                 RSTRING_LEN(last_value)) != 0) {
       // this blob is unique. Write it
-      blob_write(out, blobs[ii]);
-
-      if(last_blob) free(last_blob);
-      last_blob = blobs[ii];
-    } else {
-      free(blobs[ii]);
+      rstring_write(out, values[ii]);
+      last_value = values[ii];
     }
   }
-
-  if(last_blob) free(last_blob);
-  free(blobs);
 
   fclose(out);
 
