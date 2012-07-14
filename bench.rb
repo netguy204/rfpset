@@ -27,7 +27,7 @@ join = FPSet.intersect_files(num_sets.times.map { |x| x.to_s })
 stop = Time.now
 puts "Time elapsed #{(stop - start) * 1000} milliseconds\n"
 
-puts join.join(", ")
+puts "Set contains #{(join.size)} items"
 
 puts "computing the intersection with Array\n"
 
@@ -38,5 +38,11 @@ end
 stop = Time.now
 puts "Time elapsed #{(stop - start) * 1000} milliseconds\n"
 
-puts result.sort.join(", ")
+puts "Set contains #{(result.size)} items"
+
+if Set.new(join) == Set.new(result) then
+  puts 'the sets match'
+else
+  puts 'the sets do not match'
+end
 

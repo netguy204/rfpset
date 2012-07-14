@@ -58,11 +58,6 @@ int rstring_write(FILE* dst, VALUE string) {
   return fwrite(RSTRING_PTR(string), size, 1, dst);
 }
 
-void blob_print(FILE* out, blob* datum) {
-  fprintf(out, "<blob size: %ld reserved_size: %ld data: %s>\n",
-          datum->size, datum->reserved_size, datum->data);
-}
-
 int rstring_compare(const void* va, const void* vb) {
   VALUE a = *(VALUE*)va;
   VALUE b = *(VALUE*)vb;
@@ -91,32 +86,15 @@ int rstring_sort_array(VALUE* strings, size_t count) {
   qsort(strings, count, sizeof(VALUE), rstring_compare);
 }
 
-blob* blob_fill(blob* dst, const char * src, size_t count) {
-  dst = blob_ensure_reserved_size(dst, count);
-  dst->size = count;
-  memcpy(dst->data, src, count);
-  return dst;
-}
+VALUE blob_intersect_files(FILE** files, int file_count) {
+  VALUE result = rb_ary_new();
 
-blob* blob_copy(blob* src) {
-  blob* new_blob = blob_make(src->size);
-  return blob_fill(new_blob, src->data, src->size);
-}
-
-blob** blob_intersect_files(FILE** files, int file_count, int* result_count) {
-  if(file_count == 0) {
-    *result_count = 0;
-    return NULL;
-  }
+  if(file_count == 0) return result;
 
   int master_idx = 0;
   int ii = 0;
   blob* master_blob = blob_make(512);
   blob* next_blob = blob_make(512);
-
-  int result_capacity = 1024;
-  *result_count = 0;
-  blob** result = malloc(sizeof(blob*) * result_capacity);
 
   // bootstrap
   master_blob = blob_read(files[0], master_blob);
@@ -164,13 +142,8 @@ blob** blob_intersect_files(FILE** files, int file_count, int* result_count) {
 
     // store the match if we had one
     if(all_match) {
-      // resize our result array if we need to
-      if(*result_count == result_capacity) {
-        result = realloc(result, result_capacity * 2);
-        result_capacity *= 2;
-      }
-
-      result[(*result_count)++] = blob_copy(master_blob);
+      rb_ary_push(result, rb_str_new(master_blob->data,
+                                     master_blob->size));
     } else {
       // if we didn't have a match then whichever blob failed first
       // becomes the new master and we try again
@@ -187,19 +160,6 @@ blob** blob_intersect_files(FILE** files, int file_count, int* result_count) {
   return result;
 }
 
-blob* blob_make_test(const char * c_str) {
-  blob* new_blob = blob_make(strlen(c_str) + 1);
-  return blob_fill(new_blob, c_str, strlen(c_str) + 1);
-}
-
-/**
- * IMROVEMENT IDEAS:
- * 
- * A RSTRING is pretty similar to a blob. We could write routines to
- * sort the RARRAY in place and emit the RSTRING directly. That would
- * cut memory usage in half.
- *
- */
 static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
   FILE* out = fopen(RSTRING_PTR(filename), "w");
   if(out == NULL) return rb_fix_new(-1);
@@ -271,22 +231,12 @@ VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
     return rb_fix_new(-1);
   }
 
-  int num_results;
-  blob** blobs = blob_intersect_files(files, file_count, &num_results);
+  VALUE array = blob_intersect_files(files, file_count);
 
   // close the files
   for(ii = 0; ii < file_count; ++ii) {
     fclose(files[ii]);
   }
-
-  // build a return value for ruby
-  VALUE array = rb_ary_new();
-
-  for(ii = 0; ii < num_results; ++ii) {
-    rb_ary_push(array, rb_str_new(blobs[ii]->data, blobs[ii]->size));
-    free(blobs[ii]);
-  }
-  free(blobs);
 
   return array;
 }

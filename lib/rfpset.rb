@@ -5,7 +5,7 @@ require 'set'
 module FPSet
   # Your code goes here...
   def to_file(data, filename)
-    array = Array(data.collect { |d| Marshal.dump(d) })
+    array = (data.collect { |d| Marshal.dump(d) }).to_a
     result = FPSetInternal.spit_array(array, filename)
     raise "does the file #{filename} exist?" if result == -1
     return result
