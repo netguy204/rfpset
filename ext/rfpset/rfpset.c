@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <zlib.h>
 
 typedef struct {
   size_t size;
@@ -17,8 +18,8 @@ typedef char* bytes;
  * read successfully or 0 if it wasn't possible to read the requested
  * number of bytes.
  */
-int read_confidently(FILE* src, size_t count, bytes data) {
-  return fread(data, count, 1, src);
+int read_confidently(gzFile src, size_t count, bytes data) {
+  return gzread(src, data, count);
 }
 
 blob* blob_make(size_t reserved_size) {
@@ -41,7 +42,7 @@ blob* blob_ensure_reserved_size(blob* datum, size_t reserved_size) {
  * enough to contain the blob so the returned value should always be
  * used in place of DATUM. Returns null if read was impossible.
  */
-blob* blob_read(FILE* src, blob* datum) {
+blob* blob_read(gzFile src, blob* datum) {
   if(!read_confidently(src, sizeof(size_t), (char*)datum)) return NULL;
   datum = blob_ensure_reserved_size(datum, datum->size);
   if(!read_confidently(src, datum->size, datum->data)) return NULL;
@@ -52,10 +53,10 @@ blob* blob_read(FILE* src, blob* datum) {
  * Writes DATUM to DST. Returns bytes written if success or 0 if
  * failure. (A blob always has size > 0)
  */
-int rstring_write(FILE* dst, VALUE string) {
+int rstring_write(gzFile dst, VALUE string) {
   size_t size = RSTRING_LEN(string);
-  fwrite(&size, sizeof(size_t), 1, dst);
-  return fwrite(RSTRING_PTR(string), size, 1, dst);
+  gzwrite(dst, &size, sizeof(size_t));
+  return gzwrite(dst, RSTRING_PTR(string), RSTRING_LEN(string));
 }
 
 int rstring_compare(const void* va, const void* vb) {
@@ -86,7 +87,7 @@ int rstring_sort_array(VALUE* strings, size_t count) {
   qsort(strings, count, sizeof(VALUE), rstring_compare);
 }
 
-VALUE blob_intersect_files(FILE** files, int file_count) {
+VALUE blob_intersect_files(gzFile* files, int file_count) {
   VALUE result = rb_ary_new();
 
   if(file_count == 0) return result;
@@ -161,7 +162,7 @@ VALUE blob_intersect_files(FILE** files, int file_count) {
 }
 
 static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
-  FILE* out = fopen(RSTRING_PTR(filename), "w");
+  gzFile out = gzopen(RSTRING_PTR(filename), "wb9");
   if(out == NULL) return rb_fix_new(-1);
 
   long ii; 
@@ -184,14 +185,14 @@ static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
     }
   }
 
-  fclose(out);
+  gzclose(out);
 
   // return the number of blobs written
   return rb_fix_new(size);
 }
 
 VALUE rfpset_slurp_array(VALUE self, VALUE filename) {
-  FILE* in = fopen(RSTRING_PTR(filename), "r");
+  gzFile in = gzopen(RSTRING_PTR(filename), "rb");
   if(in == NULL) return rb_fix_new(-1);
 
   VALUE array = rb_ary_new();
@@ -200,7 +201,7 @@ VALUE rfpset_slurp_array(VALUE self, VALUE filename) {
   while((next_blob = blob_read(in, next_blob)) != NULL) {
     rb_ary_push(array, rb_str_new(next_blob->data, next_blob->size));
   }
-  fclose(in);
+  gzclose(in);
   free(next_blob);
 
   return array;
@@ -210,13 +211,13 @@ VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
   long file_count = RARRAY_LEN(filenames);
   int ii;
 
-  FILE** files = malloc(sizeof(FILE*) * file_count);
+  gzFile* files = malloc(sizeof(gzFile) * file_count);
   VALUE* values = RARRAY_PTR(filenames);
 
   // open all the files
   for(ii = 0; ii < file_count; ++ii) {
     const char* name = RSTRING_PTR(values[ii]);
-    FILE* file = fopen(name, "r");
+    gzFile file = gzopen(name, "r");
     if(file == NULL) break; // failure!
     files[ii] = file;
   }
@@ -226,7 +227,7 @@ VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
     // close them all
     int jj;
     for(jj = 0; jj < ii; ++jj) {
-      fclose(files[jj]);
+      gzclose(files[jj]);
     }
     return rb_fix_new(-1);
   }
@@ -235,7 +236,7 @@ VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
 
   // close the files
   for(ii = 0; ii < file_count; ++ii) {
-    fclose(files[ii]);
+    gzclose(files[ii]);
   }
 
   return array;
