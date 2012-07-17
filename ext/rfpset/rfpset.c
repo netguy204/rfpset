@@ -209,10 +209,14 @@ VALUE rfpset_slurp_array(VALUE self, VALUE filename) {
 
 VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
   long file_count = RARRAY_LEN(filenames);
+  VALUE* values = RARRAY_PTR(filenames);
   int ii;
 
+  if(file_count == 1) {
+    return rfpset_slurp_array(self, values[0]);
+  }
+
   gzFile* files = malloc(sizeof(gzFile) * file_count);
-  VALUE* values = RARRAY_PTR(filenames);
 
   // open all the files
   for(ii = 0; ii < file_count; ++ii) {

@@ -30,6 +30,7 @@ class FPSetTest < Test::Unit::TestCase
     FPSet.to_file(3..6, test2)
     assert_equal 3, FPSet.intersect_files([test1, test2]).size
     assert_equal (1..5).to_set, FPSet.from_file(test1)
+    assert_equal Array(1..5), FPSet.intersect_files([test1])
   end
 end
 
