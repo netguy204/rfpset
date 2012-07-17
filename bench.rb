@@ -21,7 +21,7 @@ sets = num_sets.times.map do |ii|
   FPSet.to_file!(ngrams, ii.to_s)
   stop = Time.now
   puts " Writing time elapsed #{(stop - start) * 1000} milliseconds\n"
-  []
+  ngrams
 end
 
 puts "computing the intersection with FPSet\n"
