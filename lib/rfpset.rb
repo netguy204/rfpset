@@ -12,6 +12,16 @@ module FPSet
   end
   module_function :to_file
 
+  def to_file!(data, filename)
+    return to_file(data, filename) if not data.kind_of?(Array)
+
+    data.collect! { |d| Marshal.dump(d) }
+    result = FPSetInternal.spit_array(data, filename)
+    raise "does the file #{filename} exist?" if result == -1
+    return result
+  end
+  module_function :to_file!
+
   def from_file(filename)
     result = FPSetInternal.slurp_array(filename)
     raise "does the file #{filename} exist?" if result == -1

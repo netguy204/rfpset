@@ -18,10 +18,10 @@ sets = num_sets.times.map do |ii|
   puts "Set #{ii}"
   ngrams = generate_ngrams(size, 4)
   start = Time.now
-  FPSet.to_file(ngrams, ii.to_s)
+  FPSet.to_file!(ngrams, ii.to_s)
   stop = Time.now
   puts " Writing time elapsed #{(stop - start) * 1000} milliseconds\n"
-  ngrams
+  []
 end
 
 puts "computing the intersection with FPSet\n"

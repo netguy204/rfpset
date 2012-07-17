@@ -31,6 +31,14 @@ class FPSetTest < Test::Unit::TestCase
     assert_equal 3, FPSet.intersect_files([test1, test2]).size
     assert_equal (1..5).to_set, FPSet.from_file(test1)
     assert_equal Array(1..5), FPSet.intersect_files([test1])
+
+    # are more interesting types preserved?
+    test3_data = 5.times.collect { |i| [i.to_s] }
+    test3 = "test3.dat"
+    FPSet.to_file(test3_data, test3)
+    assert_equal test3_data.to_set, FPSet.from_file(test3)
+    FPSet.to_file!(Array.new(test3_data), test3)
+    assert_equal test3_data.to_set, FPSet.from_file(test3)
   end
 end
 
