@@ -162,7 +162,7 @@ VALUE blob_intersect_files(gzFile* files, int file_count) {
 }
 
 static VALUE rfpset_spit_array(VALUE self, VALUE array, VALUE filename) {
-  gzFile out = gzopen(RSTRING_PTR(filename), "wb9");
+  gzFile out = gzopen(RSTRING_PTR(filename), "wb2");
   if(out == NULL) return rb_fix_new(-1);
 
   long ii; 
@@ -221,7 +221,7 @@ VALUE rfpset_intersect_files(VALUE self, VALUE filenames) {
   // open all the files
   for(ii = 0; ii < file_count; ++ii) {
     const char* name = RSTRING_PTR(values[ii]);
-    gzFile file = gzopen(name, "r");
+    gzFile file = gzopen(name, "rb");
     if(file == NULL) break; // failure!
     files[ii] = file;
   }
