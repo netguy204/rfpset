@@ -7,9 +7,9 @@ Gem::Specification.new do |s|
   s.version     = Rfpset::VERSION
   s.authors     = ["Brian Taylor"]
   s.email       = ["el.wubo@gmail.com"]
-  s.homepage    = ""
+  s.homepage    = "http://www.50ply.com/blog/2012/07/21/introducing-fast/"
   s.summary     = %q{Fast, persistent sets}
-  s.description = %q{Fast, persistent sets supporting efficient intersections of many very large sets}
+  s.description = %q{Fast, persistent sets supporting efficient intersections of many very large sets.}
 
   s.rubyforge_project = "rfpset"
 

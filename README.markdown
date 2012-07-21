@@ -26,6 +26,12 @@ Then, presumably at runtime, we can do our big set intersections:
 common_terms = FPSet.intersect_files(setNames)
 ```
 
+To slurp in a set from just one of the files:
+
+```ruby
+set = FBSet.from_file(setNames[0])
+```
+
 This is a bundler created gem. To build and install just run:
 
 ``` bash
