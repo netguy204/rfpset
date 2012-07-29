@@ -52,7 +52,7 @@ module FPSet
   def from_file(filename)
     result = FPSetInternal.slurp_array(filename)
     raise "does the file #{filename} exist?" if result == -1
-    return Set.new( result.map { |s| Marshal.load(s) } )
+    result.map { |s| Marshal.load(s) }
   end
   module_function :from_file
 
